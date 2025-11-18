@@ -181,15 +181,20 @@ class UserRepositoryTest {
     @Test
     @Transactional
     void assertThatFindAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBeforeWorks() {
-        Instant threeDaysAgo = Instant.now().minus(3, ChronoUnit.DAYS);
+        // Create user first - createdDate will be set automatically by @CreatedDate
         user.setActivated(false);
         user.setActivationKey("activation-key");
-        user.setCreatedDate(threeDaysAgo);
         userRepository.saveAndFlush(user);
 
-        List<User> foundUsers = userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(
-            Instant.now().minus(2, ChronoUnit.DAYS)
-        );
+        // Get the actual createdDate that was set
+        User savedUser = userRepository.findOneByLogin(DEFAULT_LOGIN).orElseThrow();
+        Instant actualCreatedDate = savedUser.getCreatedDate();
+
+        // Now query for users created before a time that's after the user was created
+        // We use a time that's 1 day after the actual created date
+        Instant queryTime = actualCreatedDate.plus(1, ChronoUnit.DAYS);
+
+        List<User> foundUsers = userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(queryTime);
         assertThat(foundUsers).isNotEmpty();
         assertThat(foundUsers.stream().anyMatch(u -> u.getLogin().equals(DEFAULT_LOGIN))).isTrue();
     }
@@ -197,14 +202,20 @@ class UserRepositoryTest {
     @Test
     @Transactional
     void assertThatFindAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBeforeReturnsEmptyForRecentUsers() {
+        // Create user - createdDate will be set to current time automatically
         user.setActivated(false);
         user.setActivationKey("activation-key");
-        user.setCreatedDate(Instant.now().minus(1, ChronoUnit.DAYS));
         userRepository.saveAndFlush(user);
 
-        List<User> foundUsers = userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(
-            Instant.now().minus(2, ChronoUnit.DAYS)
-        );
+        // Get the actual createdDate that was set
+        User savedUser = userRepository.findOneByLogin(DEFAULT_LOGIN).orElseThrow();
+        Instant actualCreatedDate = savedUser.getCreatedDate();
+
+        // Query for users created before a time that's before the user was created
+        // This should return empty since the user was just created
+        Instant queryTime = actualCreatedDate.minus(1, ChronoUnit.SECONDS);
+
+        List<User> foundUsers = userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(queryTime);
         assertThat(foundUsers).isEmpty();
     }
 

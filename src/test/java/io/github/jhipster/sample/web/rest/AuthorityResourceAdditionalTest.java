@@ -146,6 +146,7 @@ class AuthorityResourceAdditionalTest {
     }
 
     @Test
+    @WithMockUser // No admin role
     void testUnauthorizedAccess() throws Exception {
         // Test without admin role
         restAuthorityMockMvc.perform(get(ENTITY_API_URL)).andExpect(status().isForbidden());

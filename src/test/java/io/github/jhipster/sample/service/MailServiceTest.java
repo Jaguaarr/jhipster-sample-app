@@ -64,6 +64,15 @@ class MailServiceTest {
         when(jHipsterProperties.getMail()).thenReturn(mailProperties);
         when(mailProperties.getFrom()).thenReturn("test@example.com");
         when(mailProperties.getBaseUrl()).thenReturn("http://localhost:8080");
+
+        // Mock cache properties to prevent NullPointerException in CacheConfiguration
+        JHipsterProperties.Cache cacheProperties = mock(JHipsterProperties.Cache.class);
+        JHipsterProperties.Cache.Ehcache ehcacheProperties = mock(JHipsterProperties.Cache.Ehcache.class);
+        when(jHipsterProperties.getCache()).thenReturn(cacheProperties);
+        when(cacheProperties.getEhcache()).thenReturn(ehcacheProperties);
+        when(ehcacheProperties.getMaxEntries()).thenReturn(100);
+        when(ehcacheProperties.getTimeToLiveSeconds()).thenReturn(3600L);
+
         when(messageSource.getMessage(anyString(), any(), any(Locale.class))).thenReturn("Test Subject");
         when(templateEngine.process(anyString(), any())).thenReturn("<html>Test Content</html>");
     }

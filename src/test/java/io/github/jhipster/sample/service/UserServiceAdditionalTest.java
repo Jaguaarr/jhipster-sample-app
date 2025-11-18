@@ -27,6 +27,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.transaction.annotation.Transactional;
 import tech.jhipster.security.RandomUtil;
 
@@ -174,6 +175,7 @@ class UserServiceAdditionalTest {
         User nonActivatedUser = new User();
         nonActivatedUser.setLogin("duplicate");
         nonActivatedUser.setEmail("duplicate@example.com");
+        nonActivatedUser.setPassword(passwordEncoder.encode("oldPassword"));
         nonActivatedUser.setActivated(false);
         nonActivatedUser.setActivationKey("old-key");
         userRepository.saveAndFlush(nonActivatedUser);
@@ -295,6 +297,7 @@ class UserServiceAdditionalTest {
 
     @Test
     @Transactional
+    @WithMockUser(username = "testuser_additional")
     void assertThatUpdateUserBasicInfoWorks() {
         userRepository.saveAndFlush(user);
 
@@ -310,6 +313,7 @@ class UserServiceAdditionalTest {
 
     @Test
     @Transactional
+    @WithMockUser(username = "testuser_additional")
     void assertThatUpdateUserBasicInfoWithNullEmailWorks() {
         userRepository.saveAndFlush(user);
 
@@ -322,6 +326,7 @@ class UserServiceAdditionalTest {
 
     @Test
     @Transactional
+    @WithMockUser(username = "testuser_additional")
     void assertThatChangePasswordWithWrongCurrentPasswordThrowsException() {
         String currentPassword = "currentPassword";
         user.setPassword(passwordEncoder.encode(currentPassword));
@@ -332,6 +337,7 @@ class UserServiceAdditionalTest {
 
     @Test
     @Transactional
+    @WithMockUser(username = "testuser_additional")
     void assertThatChangePasswordWorks() {
         String currentPassword = "currentPassword";
         user.setPassword(passwordEncoder.encode(currentPassword));
