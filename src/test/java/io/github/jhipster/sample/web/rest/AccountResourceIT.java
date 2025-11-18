@@ -1,6 +1,8 @@
 package io.github.jhipster.sample.web.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -16,6 +18,7 @@ import io.github.jhipster.sample.service.dto.AdminUserDTO;
 import io.github.jhipster.sample.service.dto.PasswordChangeDTO;
 import io.github.jhipster.sample.web.rest.vm.KeyAndPasswordVM;
 import io.github.jhipster.sample.web.rest.vm.ManagedUserVM;
+import jakarta.mail.internet.MimeMessage;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Stream;
@@ -27,7 +30,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -60,11 +65,16 @@ class AccountResourceIT {
     @Autowired
     private MockMvc restAccountMockMvc;
 
+    @MockBean
+    private JavaMailSender javaMailSender;
+
     private Long numberOfUsers;
 
     @BeforeEach
     void countUsers() {
         numberOfUsers = userRepository.count();
+        // Configure mail sender mock to prevent connection errors
+        doNothing().when(javaMailSender).send(any(MimeMessage.class));
     }
 
     @AfterEach
