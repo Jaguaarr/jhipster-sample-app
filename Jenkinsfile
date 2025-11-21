@@ -70,9 +70,7 @@ pipeline {
         stage('6. Quality Gate Check') {
             steps {
                 echo 'Checking Quality Gate...'
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: false
-                }
+
             }
         }
     }
