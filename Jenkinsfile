@@ -119,20 +119,17 @@ pipeline {
         stage('Start Minikube Cluster') {
     steps {
         script {
-            echo "Starting Minikube cluster (simplified)..."
+            echo "Starting Minikube cluster..."
             sh '''
-                # Clean start
-                minikube delete || true
-                docker system prune -f || true
+                # Start minikube (this creates the profile if missing)
+                minikube start --driver=docker --force
 
-                # Simple start with longer timeout
-                minikube start --driver=docker --force --wait-timeout=10m
+                # Wait for it to be fully ready
+                sleep 30
 
-                # Extended wait
-                sleep 90
-                echo "Cluster status:"
+                # Verify it's running
                 minikube status
-                echo "✅ Minikube ready"
+                echo "✅ Minikube cluster started successfully"
             '''
         }
     }
