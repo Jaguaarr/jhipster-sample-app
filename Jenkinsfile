@@ -116,35 +116,40 @@ pipeline {
             }
         }
 
-        stage('Initialize Minikube') {
-            steps {
-                script {
-                    // Check if minikube is installed and start it if needed
-                    def minikubeInstalled = sh(
-                        script: 'which minikube',
-                        returnStatus: true
-                    ) == 0
+        stage('Check Minikube Status') {
+    steps {
+        script {
+            // Get ACTUAL minikube status
+            def minikubeStatus = sh(
+                script: 'minikube status --format="{{.Host}}" 2>/dev/null || echo "NOT_RUNNING"',
+                returnStdout: true
+            ).trim()
 
-                    if (minikubeInstalled) {
-                        echo "Minikube is installed - checking status..."
-                        def minikubeRunning = sh(
-                            script: 'minikube status | grep -q "Running" && echo "RUNNING" || echo "NOT_RUNNING"',
-                            returnStatus: true
-                        ) == 0
+            echo "Minikube status: ${minikubeStatus}"
 
-                        if (!minikubeRunning) {
-                            echo "Starting minikube cluster..."
-                            sh 'minikube start --driver=docker --force'
-                            sh 'sleep 30' // Wait for minikube to fully start
-                        } else {
-                            echo "Minikube is already running"
-                        }
-                    } else {
-                        echo "Minikube not installed - skipping Kubernetes stages"
-                    }
-                }
+            if (minikubeStatus != "Running") {
+                currentBuild.result = 'FAILURE'
+                error "❌ Minikube is not running. Run 'minikube start' first."
             }
         }
+    }
+}
+
+stage('Setup Minikube Docker') {
+    steps {
+        script {
+            echo "Setting up Minikube Docker environment..."
+            sh '''
+                # Test if minikube docker-env works
+                eval $(minikube docker-env)
+                docker info | grep "Server Version"
+                echo "✅ Minikube Docker environment ready"
+            '''
+        }
+    }
+}
+
+
 
         stage('Build Docker Image for Kubernetes') {
             when {
