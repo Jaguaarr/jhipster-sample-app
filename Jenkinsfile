@@ -119,46 +119,48 @@ pipeline {
         stage('Initialize Minikube') {
             steps {
                 script {
-                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        def minikubeCheck = sh(
-                            script: 'which minikube && minikube status 2>/dev/null | grep -q "Running" && echo "RUNNING" || echo "NOT_RUNNING"',
-                            returnStdout: true
-                        ).trim()
+                    // Check if minikube is installed and start it if needed
+                    def minikubeInstalled = sh(
+                        script: 'which minikube',
+                        returnStatus: true
+                    ) == 0
 
-                        if (minikubeCheck == "RUNNING") {
-                            echo "Minikube is running and available"
-                            // Set minikube docker environment
-                            sh '''
-                                eval $(minikube docker-env)
-                                docker images | head -10 || echo "Docker env configured"
-                            '''
+                    if (minikubeInstalled) {
+                        echo "Minikube is installed - checking status..."
+                        def minikubeRunning = sh(
+                            script: 'minikube status | grep -q "Running" && echo "RUNNING" || echo "NOT_RUNNING"',
+                            returnStatus: true
+                        ) == 0
+
+                        if (!minikubeRunning) {
+                            echo "Starting minikube cluster..."
+                            sh 'minikube start --driver=docker --force'
+                            sh 'sleep 30' // Wait for minikube to fully start
                         } else {
-                            echo "Minikube is not available or not running"
-                            currentBuild.result = 'SUCCESS'
+                            echo "Minikube is already running"
                         }
+                    } else {
+                        echo "Minikube not installed - skipping Kubernetes stages"
                     }
                 }
             }
         }
 
-        // FIXED: Kubernetes stages with proper error handling
         stage('Build Docker Image for Kubernetes') {
+            when {
+                expression {
+                    sh(script: 'which minikube', returnStatus: true) == 0
+                }
+            }
             steps {
                 script {
-                    // Check if minikube is available
-                    def minikubeAvailable = sh(
-                        script: 'which minikube && minikube status || echo "minikube not available"',
-                        returnStatus: true
-                    ) == 0
-
-                    if (minikubeAvailable) {
-                        echo "Minikube is available - building image for Kubernetes"
-                        sh """
-                            eval \$(minikube docker-env) && docker build -t ${APP_NAME}:k8s .
-                        """
-                    } else {
-                        echo "Minikube is not available - skipping Kubernetes image build"
-                    }
+                    echo "Building Docker image for Kubernetes..."
+                    sh """
+                        # Use minikube's docker environment
+                        eval \$(minikube docker-env)
+                        docker build -t ${APP_NAME}:k8s .
+                        echo "✅ Image built successfully for Kubernetes"
+                    """
                 }
             }
         }
@@ -166,27 +168,26 @@ pipeline {
         stage('Deploy to Kubernetes') {
             when {
                 expression {
-                    // Only run if minikube is available
                     sh(script: 'which minikube', returnStatus: true) == 0
                 }
             }
             steps {
                 script {
-                    // Check if kubernetes directory exists
-                    def k8sDirExists = fileExists('kubernetes/')
-
-                    if (k8sDirExists) {
-                        sh """
-                            # Apply Kubernetes configurations
+                    echo "Deploying to Kubernetes..."
+                    sh """
+                        # Apply Kubernetes configurations if they exist
+                        if [ -d "kubernetes/" ]; then
                             kubectl apply -f kubernetes/
-
-                            # Wait for deployments to be ready
                             kubectl rollout status deployment/jhipster-app --timeout=300s || echo "JHipster app deployment not found"
                             kubectl rollout status deployment/postgresql --timeout=300s || echo "PostgreSQL deployment not found"
-                        """
-                    } else {
-                        echo "Kubernetes configuration directory not found - skipping deployment"
-                    }
+                            echo "✅ Kubernetes deployment completed"
+                        else
+                            echo "⚠️  Kubernetes directory not found - creating basic deployment"
+                            # Create a basic deployment if no k8s files exist
+                            kubectl create deployment ${APP_NAME} --image=${APP_NAME}:k8s --dry-run=client -o yaml | kubectl apply -f -
+                            kubectl expose deployment ${APP_NAME} --port=8080 --type=NodePort --dry-run=client -o yaml | kubectl apply -f -
+                        fi
+                    """
                 }
             }
         }
@@ -199,13 +200,17 @@ pipeline {
             }
             steps {
                 script {
+                    echo "Getting application URL..."
                     sh """
-                        # Get the application URL
-                        minikube service jhipster-service --url || echo "Service not found in minikube"
+                        minikube service ${APP_NAME} --url || echo "Service not available"
                     """
                 }
             }
         }
+
+
+
+
     }
 
     post {
