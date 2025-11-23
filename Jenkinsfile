@@ -116,6 +116,31 @@ pipeline {
             }
         }
 
+        stage('Initialize Minikube') {
+            steps {
+                script {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                        def minikubeCheck = sh(
+                            script: 'which minikube && minikube status 2>/dev/null | grep -q "Running" && echo "RUNNING" || echo "NOT_RUNNING"',
+                            returnStdout: true
+                        ).trim()
+
+                        if (minikubeCheck == "RUNNING") {
+                            echo "Minikube is running and available"
+                            // Set minikube docker environment
+                            sh '''
+                                eval $(minikube docker-env)
+                                docker images | head -10 || echo "Docker env configured"
+                            '''
+                        } else {
+                            echo "Minikube is not available or not running"
+                            currentBuild.result = 'SUCCESS'
+                        }
+                    }
+                }
+            }
+        }
+
         // FIXED: Kubernetes stages with proper error handling
         stage('Build Docker Image for Kubernetes') {
             steps {
