@@ -116,6 +116,25 @@ pipeline {
             }
         }
 
+        stage('Start Minikube Cluster') {
+    steps {
+        script {
+            echo "Starting Minikube cluster..."
+            sh '''
+                # Start minikube (this creates the profile if missing)
+                minikube start --driver=docker --force
+
+                # Wait for it to be fully ready
+                sleep 30
+
+                # Verify it's running
+                minikube status
+                echo "✅ Minikube cluster started successfully"
+            '''
+        }
+    }
+}
+
         stage('Check Minikube Status') {
     steps {
         script {
