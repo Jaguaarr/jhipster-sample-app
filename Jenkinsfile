@@ -118,15 +118,25 @@ pipeline {
     }
 }
 
+stage('Build Docker Image for Kubernetes') {
+    steps {
+        sh """
+        # Build the image using Minikube's Docker daemon
+        eval \$(minikube docker-env)
+        docker build -t ${APP_NAME} .
+        """
+    }
+}
+
 stage('Deploy to Kubernetes') {
     steps {
         sh """
         # Apply Kubernetes configurations
         kubectl apply -f kubernetes/
 
-        # Wait for deployment to be ready
-        kubectl rollout status deployment/jhipster-app
-        kubectl rollout status deployment/postgresql
+        # Wait for deployments to be ready
+        kubectl rollout status deployment/jhipster-app --timeout=300s
+        kubectl rollout status deployment/postgresql --timeout=300s
         """
     }
 }
@@ -139,7 +149,8 @@ stage('Expose Application') {
         """
     }
 }
-      }
+
+}
 
     post {
         success {

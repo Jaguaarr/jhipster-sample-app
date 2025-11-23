@@ -26,9 +26,3 @@ spec:
           value: "jhipsterSampleApplication"
         - name: POSTGRES_PASSWORD
           value: "password"
-        volumeMounts:
-        - name: postgresql-storage
-          mountPath: /var/lib/postgresql/data
-      volumes:
-      - name: postgresql-storage
-        emptyDir: {}
