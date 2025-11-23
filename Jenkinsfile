@@ -119,17 +119,23 @@ pipeline {
         stage('Start Minikube Cluster') {
     steps {
         script {
-            echo "Starting Minikube cluster..."
             sh '''
-                # Start minikube (this creates the profile if missing)
-                minikube start --driver=docker --force
+                # Clean start
+                minikube delete --all --purge || true
 
-                # Wait for it to be fully ready
-                sleep 30
+                # Start with proper settings for your environment
+                minikube start \
+                    --driver=docker \
+                    --force \
+                    --wait=all \
+                    --wait-timeout=10m \
+                    --apiserver-port=8443 \
+                    --kubernetes-version=stable
 
-                # Verify it's running
-                minikube status
-                echo "✅ Minikube cluster started successfully"
+                # Wait for API server to be ready
+                sleep 60
+                kubectl cluster-info
+                echo "✅ Kubernetes API server (8443) is ready!"
             '''
         }
     }
