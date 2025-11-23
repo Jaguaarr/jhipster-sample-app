@@ -117,6 +117,28 @@ pipeline {
         """
     }
 }
+
+stage('Deploy to Kubernetes') {
+    steps {
+        sh """
+        # Apply Kubernetes configurations
+        kubectl apply -f kubernetes/
+
+        # Wait for deployment to be ready
+        kubectl rollout status deployment/jhipster-app
+        kubectl rollout status deployment/postgresql
+        """
+    }
+}
+
+stage('Expose Application') {
+    steps {
+        sh """
+        # Get the application URL
+        minikube service jhipster-service --url
+        """
+    }
+}
       }
 
     post {

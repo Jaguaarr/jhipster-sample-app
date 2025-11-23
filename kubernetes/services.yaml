@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: jhipster-service
+spec:
+  selector:
+    app: jhipster-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgresql
+spec:
+  selector:
+    app: postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
