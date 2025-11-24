@@ -230,7 +230,7 @@ stage('Setup Minikube Docker') {
 
             echo "✅ JHipster app is now accessible at: http://${MINIKUBE_IP}:${NODE_PORT}"
             HOST_IP=\$(ip route get 1.1.1.1 | awk '{print \$7; exit}')
-                        echo "✅ JHipster app is now accessible at: http://\$HOST_IP:8080"
+            echo "✅ JHipster app is now accessible at: http://\$HOST_IP:8080"
 
         }
     }
