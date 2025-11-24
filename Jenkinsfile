@@ -229,7 +229,7 @@ stage('Setup Minikube Docker') {
                         nohup kubectl port-forward deployment/${APP_NAME} 8080:8080 --address 0.0.0.0 > port-forward.log 2>&1 &
 
                         # Get Jenkins host IP
-                        HOST_IP=\$(hostname -I | awk '{print \$1}')
+                        HOST_IP=\$(ip route get 1.1.1.1 | awk '{print \$7; exit}')
                         echo "✅ JHipster app is now accessible at: http://\$HOST_IP:8080"
                         echo "You can also check logs with: cat port-forward.log"
                     """
