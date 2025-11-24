@@ -220,22 +220,18 @@ stage('Setup Minikube Docker') {
             }
         }
 
-        stage('Port Forward JHipster App') {
-            steps {
-                script {
-                    echo "Forwarding JHipster port to Jenkins host..."
-                    sh """
-                        # Forward port 8080 of the deployment to 8080 on the Jenkins host
-                        nohup kubectl port-forward deployment/${APP_NAME} 8080:8080 --address 0.0.0.0 > port-forward.log 2>&1 &
+        stage('Expose JHipster App via NodePort') {
+    steps {
+        script {
+            echo "Getting Minikube IP for NodePort access..."
+            def MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
+            def NODE_PORT = "30080" // make sure this is the NodePort in your service YAML
 
-                        # Get Jenkins host IP
-                        HOST_IP=\$(ip route get 1.1.1.1 | awk '{print \$7; exit}')
-                        echo "✅ JHipster app is now accessible at: http://\$HOST_IP:8080"
-                        echo "You can also check logs with: cat port-forward.log"
-                    """
-                }
-            }
+            echo "✅ JHipster app is now accessible at: http://${MINIKUBE_IP}:${NODE_PORT}"
         }
+    }
+}
+
 
         stage('Expose Application') {
             when {

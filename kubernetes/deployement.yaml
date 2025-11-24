@@ -72,7 +72,7 @@ spec:
       containers:
         - name: jhipster-app
           image: jhipster-app:k8s
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Never
           ports:
             - containerPort: 8080
           env:
