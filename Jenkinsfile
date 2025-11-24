@@ -220,6 +220,7 @@ stage('Setup Minikube Docker') {
             }
         }
 
+
         stage('Expose JHipster App via NodePort') {
     steps {
         script {
@@ -228,10 +229,12 @@ stage('Setup Minikube Docker') {
             def NODE_PORT = "30080" // make sure this is the NodePort in your service YAML
 
             echo "✅ JHipster app is now accessible at: http://${MINIKUBE_IP}:${NODE_PORT}"
+            HOST_IP=\$(ip route get 1.1.1.1 | awk '{print \$7; exit}')
+                        echo "✅ JHipster app is now accessible at: http://\$HOST_IP:8080"
+
         }
     }
 }
-
 
         stage('Expose Application') {
             when {
