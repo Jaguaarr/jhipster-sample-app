@@ -222,22 +222,7 @@ stage('Setup Minikube Docker') {
 
 
 
-        stage('Deploy to Kubernetes') {
-    steps {
-        script {
-            echo "Deploying to Kubernetes..."
-            sh '''
-                # Apply all k8s manifests
-                kubectl apply -f kubernetes/
 
-                # Wait for deployments to roll out
-                kubectl rollout status deployment/postgresql --timeout=300s
-                kubectl rollout status deployment/jhipster-app --timeout=300s
-            '''
-            echo "✅ Kubernetes deployment completed"
-        }
-    }
-}
 
 stage('Expose JHipster App via LoadBalancer') {
     steps {
