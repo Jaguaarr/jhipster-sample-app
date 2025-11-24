@@ -222,6 +222,19 @@ stage('Setup Minikube Docker') {
             }
         }
 
+        stage('Port Forward JHipster App') {
+    steps {
+        script {
+            echo "Forwarding JHipster port to localhost..."
+            sh """
+                kubectl port-forward deployment/${APP_NAME} 8080:8080 &
+                echo "✅ JHipster port-forward started: http://localhost:8080"
+            """
+        }
+    }
+}
+
+
         stage('Expose Application') {
             when {
                 expression {
