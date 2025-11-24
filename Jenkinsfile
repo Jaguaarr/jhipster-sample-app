@@ -195,7 +195,7 @@ stage('Setup Minikube Docker') {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+                stage('Deploy to Kubernetes') {
             when {
                 expression {
                     sh(script: 'which minikube', returnStatus: true) == 0
@@ -205,35 +205,37 @@ stage('Setup Minikube Docker') {
                 script {
                     echo "Deploying to Kubernetes..."
                     sh """
-                        # Apply Kubernetes configurations if they exist
                         if [ -d "kubernetes/" ]; then
                             kubectl apply -f kubernetes/
                             kubectl rollout status deployment/jhipster-app --timeout=300s || echo "JHipster app deployment not found"
                             kubectl rollout status deployment/postgresql --timeout=300s || echo "PostgreSQL deployment not found"
-                            echo "✅ Kubernetes deployment completed"
                         else
                             echo "⚠️  Kubernetes directory not found - creating basic deployment"
-                            # Create a basic deployment if no k8s files exist
                             kubectl create deployment ${APP_NAME} --image=${APP_NAME}:k8s --dry-run=client -o yaml | kubectl apply -f -
                             kubectl expose deployment ${APP_NAME} --port=8080 --type=NodePort --dry-run=client -o yaml | kubectl apply -f -
                         fi
+                        echo "✅ Kubernetes deployment completed"
                     """
                 }
             }
         }
 
         stage('Port Forward JHipster App') {
-    steps {
-        script {
-            echo "Forwarding JHipster port to localhost..."
-            sh """
-                kubectl port-forward deployment/${APP_NAME} 8080:8080 &
-                echo "✅ JHipster port-forward started: http://localhost:8080"
-            """
-        }
-    }
-}
+            steps {
+                script {
+                    echo "Forwarding JHipster port to Jenkins host..."
+                    sh """
+                        # Forward port 8080 of the deployment to 8080 on the Jenkins host
+                        nohup kubectl port-forward deployment/${APP_NAME} 8080:8080 --address 0.0.0.0 > port-forward.log 2>&1 &
 
+                        # Get Jenkins host IP
+                        HOST_IP=\$(hostname -I | awk '{print \$1}')
+                        echo "✅ JHipster app is now accessible at: http://\$HOST_IP:8080"
+                        echo "You can also check logs with: cat port-forward.log"
+                    """
+                }
+            }
+        }
 
         stage('Expose Application') {
             when {
@@ -243,7 +245,7 @@ stage('Setup Minikube Docker') {
             }
             steps {
                 script {
-                    echo "Getting application URL..."
+                    echo "Getting Minikube service URL..."
                     sh """
                         minikube service ${APP_NAME} --url || echo "Service not available"
                     """
