@@ -221,30 +221,15 @@ stage('Setup Minikube Docker') {
         }
 
 
-
-
-
-stage('Expose JHipster App via LoadBalancer') {
+stage('Expose JHipster App') {
     steps {
         script {
-            echo "Exposing JHipster app via LoadBalancer..."
-            sh '''
-                # Change Service type to LoadBalancer
-                kubectl patch svc jhipster-app -p '{"spec": {"type": "LoadBalancer"}}'
-
-                # Start Minikube tunnel in background
-                nohup minikube tunnel > minikube-tunnel.log 2>&1 &
-
-                # Wait a few seconds for tunnel to assign IP
-                sleep 10
-
-                # Get the external IP assigned
-                EXTERNAL_IP=$(kubectl get svc jhipster-app -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
-                echo "✅ JHipster app is now accessible at: http://$EXTERNAL_IP:8080"
-            '''
+            def hostIP = sh(script: "ip route get 1.1.1.1 | awk '{print \$7; exit}'", returnStdout: true).trim()
+            echo "✅ JHipster app is now accessible at: http://${hostIP}:30080"
         }
     }
 }
+
 
 
 
