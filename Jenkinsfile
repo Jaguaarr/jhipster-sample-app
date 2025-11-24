@@ -222,37 +222,45 @@ stage('Setup Minikube Docker') {
 
 
 
-stage('Expose JHipster App via NodePort') {
+        stage('Deploy to Kubernetes') {
     steps {
         script {
-            echo "Getting Minikube IP for NodePort access..."
-            def MINIKUBE_IP = sh(script: "minikube ip", returnStdout: true).trim()
-            def NODE_PORT = "30080"
+            echo "Deploying to Kubernetes..."
+            sh '''
+                # Apply all k8s manifests
+                kubectl apply -f kubernetes/
 
-            // Get host IP using Groovy
-            def HOST_IP = sh(script: "ip route get 1.1.1.1 | awk '{print \$7; exit}'", returnStdout: true).trim()
-
-            echo "✅ JHipster app is now accessible at: http://${MINIKUBE_IP}:${NODE_PORT}"
-            echo "✅ JHipster app is also accessible at: http://${HOST_IP}:8080"
+                # Wait for deployments to roll out
+                kubectl rollout status deployment/postgresql --timeout=300s
+                kubectl rollout status deployment/jhipster-app --timeout=300s
+            '''
+            echo "✅ Kubernetes deployment completed"
         }
     }
 }
 
-        stage('Expose Application') {
-            when {
-                expression {
-                    sh(script: 'which minikube', returnStatus: true) == 0
-                }
-            }
-            steps {
-                script {
-                    echo "Getting Minikube service URL..."
-                    sh """
-                        minikube service ${APP_NAME} --url || echo "Service not available"
-                    """
-                }
-            }
+stage('Expose JHipster App via LoadBalancer') {
+    steps {
+        script {
+            echo "Exposing JHipster app via LoadBalancer..."
+            sh '''
+                # Change Service type to LoadBalancer
+                kubectl patch svc jhipster-app -p '{"spec": {"type": "LoadBalancer"}}'
+
+                # Start Minikube tunnel in background
+                nohup minikube tunnel > minikube-tunnel.log 2>&1 &
+
+                # Wait a few seconds for tunnel to assign IP
+                sleep 10
+
+                # Get the external IP assigned
+                EXTERNAL_IP=$(kubectl get svc jhipster-app -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+                echo "✅ JHipster app is now accessible at: http://$EXTERNAL_IP:8080"
+            '''
         }
+    }
+}
+
 
 
 
