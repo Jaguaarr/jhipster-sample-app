@@ -252,7 +252,7 @@ stage('Expose JHipster App') {
 
             echo "✅ JHipster app is now accessible at: http://${publicIp}:30080"
             echo "ℹ️ Port-forward log: ${logFile}"
-            echo "ℹ️ Stop it with: kill \\$(cat ${pidFile})"
+            echo "ℹ️ Stop it with: kill ${'$'}(cat ${pidFile})"
         }
     }
 }
