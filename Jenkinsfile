@@ -23,7 +23,7 @@ pipeline {
         stage('2. Compile Project') {
             steps {
                 echo 'Compiling Maven project...'
-                sh 'mvn clean compile -DskipTests'
+                bat 'mvn clean compile -DskipTests'
             }
         }
 
@@ -31,7 +31,7 @@ pipeline {
             steps {
                 script {
                     catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
-                        sh '''
+                        bat '''
                             mvn test \
                                 -DskipTests=false \
                                 -Dtest="!DTOValidationTest,!MailServiceTest,!HibernateTimeZoneIT,!OperationResourceAdditionalTest" \
@@ -50,7 +50,7 @@ pipeline {
         stage('4. Generate JAR Package') {
             steps {
                 echo 'Creating JAR package...'
-                sh 'mvn package -DskipTests'
+                bat 'mvn package -DskipTests'
             }
             post {
                 success {
@@ -64,7 +64,7 @@ pipeline {
                 echo 'Running SonarQube analysis...'
                 timeout(time: 15, unit: 'MINUTES') {
                     withSonarQubeEnv('SonarQube') {
-                        sh 'mvn sonar:sonar -Dsonar.projectKey=yourwaytoltaly -DskipTests'
+                        bat 'mvn sonar:sonar -Dsonar.projectKey=yourwaytoltaly -DskipTests'
                     }
                 }
             }
@@ -79,13 +79,13 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${APP_NAME} ."
+                bat "docker build -t ${APP_NAME} ."
             }
         }
 
         stage('Run Docker Container') {
             steps {
-                sh """
+                bat """
                 # Stop old containers if exist
                 docker stop ${APP_NAME} || true
                 docker rm ${APP_NAME} || true
@@ -119,7 +119,7 @@ pipeline {
         stage('Start Minikube Cluster') {
     steps {
         script {
-            sh '''
+            bat '''
                 # Clean start
                 minikube delete --all --purge || true
 
@@ -164,7 +164,7 @@ stage('Setup Minikube Docker') {
     steps {
         script {
             echo "Setting up Minikube Docker environment..."
-            sh '''
+            bat '''
                 # Test if minikube docker-env works
                 eval $(minikube docker-env)
                 docker info | grep "Server Version"
@@ -185,7 +185,7 @@ stage('Setup Minikube Docker') {
             steps {
                 script {
                     echo "Building Docker image for Kubernetes..."
-                    sh """
+                    bat """
                         # Use minikube's docker environment
                         eval \$(minikube docker-env)
                         docker build -t ${APP_NAME}:k8s .
@@ -198,13 +198,13 @@ stage('Setup Minikube Docker') {
                 stage('Deploy to Kubernetes') {
             when {
                 expression {
-                    sh(script: 'which minikube', returnStatus: true) == 0
+                    bat(script: 'which minikube', returnStatus: true) == 0
                 }
             }
             steps {
                 script {
                     echo "Deploying to Kubernetes..."
-                    sh """
+                    bat """
                         if [ -d "kubernetes/" ]; then
                             kubectl apply -f kubernetes/
                             
@@ -252,7 +252,7 @@ stage('Expose JHipster App') {
             def pidFile = "/tmp/${APP_NAME}-port-forward.pid"
             def logFile = "/tmp/${APP_NAME}-port-forward.log"
 
-            sh """
+            bat """
                 set -euo pipefail
 
                 PID_FILE="${pidFile}"
