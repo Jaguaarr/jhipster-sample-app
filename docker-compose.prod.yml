@@ -1,7 +1,7 @@
 version: '3.8'
 services:
   jhipster-sample-app:
-    image: your-dockerhub-username/jhipster-sample-app:latest
+    image: jhipster-app:latest
     restart: always
     ports:
       - '8080:8080'
@@ -10,6 +10,8 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/jhipster
       - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgresql:5432/jhipster
       - JHIPSTER_CACHE_REDIS_SERVER=redis://redis:6379
+      - SPRING_DATASOURCE_USERNAME=jhipster
+      - SPRING_DATASOURCE_PASSWORD=password
     depends_on:
       - postgresql
       - redis
@@ -21,7 +23,7 @@ services:
     restart: always
     environment:
       - POSTGRES_USER=jhipster
-      - POSTGRES_PASSWORD=your-secure-password
+      - POSTGRES_PASSWORD=password
       - POSTGRES_DB=jhipster
     volumes:
       - postgresql_data:/var/lib/postgresql/data
