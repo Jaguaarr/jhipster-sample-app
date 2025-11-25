@@ -207,8 +207,33 @@ stage('Setup Minikube Docker') {
                     sh """
                         if [ -d "kubernetes/" ]; then
                             kubectl apply -f kubernetes/
-                            kubectl rollout status deployment/jhipster-app --timeout=300s || echo "JHipster app deployment not found"
-                            kubectl rollout status deployment/postgresql --timeout=300s || echo "PostgreSQL deployment not found"
+                            
+                            echo "Waiting for PostgreSQL to be ready..."
+                            kubectl wait --for=condition=available --timeout=300s deployment/postgresql || echo "PostgreSQL deployment timeout"
+                            
+                            echo "Waiting for JHipster app to be ready..."
+                            kubectl rollout status deployment/jhipster-app --timeout=300s || echo "JHipster app deployment timeout"
+                            
+                            echo "Waiting for pods to be running..."
+                            kubectl wait --for=condition=ready pod -l app=postgresql --timeout=120s || true
+                            kubectl wait --for=condition=ready pod -l app=jhipster-app --timeout=300s || echo "Pods not ready"
+                            
+                            echo "Checking pod status..."
+                            kubectl get pods -l app=jhipster-app
+                            kubectl get pods -l app=postgresql
+                            
+                            echo "Checking service endpoints..."
+                            kubectl get endpoints ${APP_NAME} || echo "Service endpoints not ready"
+                            
+                            echo "Waiting for app to be healthy (checking /management/health)..."
+                            for i in {1..30}; do
+                                if kubectl exec -it \$(kubectl get pod -l app=jhipster-app -o jsonpath='{.items[0].metadata.name}') -- curl -sf http://localhost:8080/management/health >/dev/null 2>&1; then
+                                    echo "✅ App is healthy!"
+                                    break
+                                fi
+                                echo "Waiting for app health check... (\$i/30)"
+                                sleep 10
+                            done
                         else
                             echo "⚠️  Kubernetes directory not found - creating basic deployment"
                             kubectl create deployment ${APP_NAME} --image=${APP_NAME}:k8s --dry-run=client -o yaml | kubectl apply -f -
@@ -234,6 +259,20 @@ stage('Expose JHipster App') {
                 LOG_FILE="${logFile}"
                 PORT_FORWARD_CMD="kubectl port-forward --address 0.0.0.0 svc/${APP_NAME} 30080:8080"
 
+                # Verify service exists
+                if ! kubectl get svc ${APP_NAME} >/dev/null 2>&1; then
+                    echo "❌ Service ${APP_NAME} not found!"
+                    exit 1
+                fi
+
+                # Check if service has endpoints
+                ENDPOINTS=\$(kubectl get endpoints ${APP_NAME} -o jsonpath='{.subsets[0].addresses[0].ip}' 2>/dev/null || echo "")
+                if [ -z "\$ENDPOINTS" ]; then
+                    echo "⚠️  Warning: Service ${APP_NAME} has no endpoints yet. Waiting..."
+                    sleep 10
+                fi
+
+                # Stop existing port-forward if running
                 if [ -f "\$PID_FILE" ]; then
                     OLD_PID=\$(cat "\$PID_FILE")
                     if ps -p \$OLD_PID >/dev/null 2>&1; then
@@ -241,18 +280,50 @@ stage('Expose JHipster App') {
                         kill \$OLD_PID || true
                         sleep 2
                     fi
+                    rm -f "\$PID_FILE"
                 fi
 
+                # Start port-forward
                 echo "Starting port-forward to expose ${APP_NAME}..."
                 nohup \$PORT_FORWARD_CMD >> "\$LOG_FILE" 2>&1 &
-                echo \$! > "\$PID_FILE"
+                PF_PID=\$!
+                echo \$PF_PID > "\$PID_FILE"
+                
+                # Wait a moment for port-forward to start
+                sleep 3
+                
+                # Verify port-forward is running
+                if ! ps -p \$PF_PID >/dev/null 2>&1; then
+                    echo "❌ Port-forward failed to start!"
+                    echo "Last 20 lines of log:"
+                    tail -20 "\$LOG_FILE" || true
+                    exit 1
+                fi
+                
+                # Test if port-forward is working
+                echo "Testing port-forward connection..."
+                for i in {1..10}; do
+                    if curl -sf http://localhost:30080/management/health >/dev/null 2>&1; then
+                        echo "✅ Port-forward is working!"
+                        break
+                    fi
+                    if [ \$i -eq 10 ]; then
+                        echo "⚠️  Port-forward started but health check failed"
+                        echo "Log file: \$LOG_FILE"
+                        tail -20 "\$LOG_FILE" || true
+                    fi
+                    sleep 2
+                done
             """
 
-            def publicIp = sh(script: "curl -s https://api.ipify.org || curl -s https://ifconfig.me", returnStdout: true).trim()
+            def publicIp = sh(script: "curl -s https://api.ipify.org || curl -s https://ifconfig.me || hostname -I | awk '{print \$1}'", returnStdout: true).trim()
 
             echo "✅ JHipster app is now accessible at: http://${publicIp}:30080"
+            echo "ℹ️ Port-forward PID file: ${pidFile}"
             echo "ℹ️ Port-forward log: ${logFile}"
-            echo "ℹ️ Stop it with: kill ${'$'}(cat ${pidFile})"
+            echo "ℹ️ To check status: ps -p \\$(cat ${pidFile})"
+            echo "ℹ️ To stop: kill \\$(cat ${pidFile})"
+            echo "ℹ️ To view logs: tail -f ${logFile}"
         }
     }
 }
