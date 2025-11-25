@@ -5,9 +5,11 @@ services:
     ports:
       - '8080:8080'
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/jhipster
-      - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgresql:5432/jhipster
+      - SPRING_PROFILES_ACTIVE=dev
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgresql:5432/jhipsterSampleApplication
+      - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgresql:5432/jhipsterSampleApplication
+      - SPRING_DATASOURCE_USERNAME=jhipsterSampleApplication
+      - SPRING_DATASOURCE_PASSWORD=password
       - JHIPSTER_SLEEP=30
     depends_on:
       - postgresql
@@ -19,9 +21,9 @@ services:
     ports:
       - '5432:5432'
     environment:
-      - POSTGRES_USER=jhipster
+      - POSTGRES_USER=jhipsterSampleApplication
       - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=jhipster
+      - POSTGRES_DB=jhipsterSampleApplication
     volumes:
       - postgresql_data:/var/lib/postgresql/data
     networks:
