@@ -2,64 +2,68 @@ pipeline {
     agent any
 
     tools {
-        // Nom que tu as configuré dans Jenkins pour Maven
+        // Nom de votre Maven installé dans Jenkins
         maven 'Maven-3.9.11'
-        // Si besoin, tu peux ajouter JDK aussi
-        // jdk 'JDK11'
+        // Java doit être installé et configuré si nécessaire
+        jdk 'JDK-17'
     }
 
     environment {
-        MVN_HOME = tool 'Maven-3.9.11'
-        PATH = "${tool 'Maven-3.9.11'}/bin:${env.PATH}"
+        PROJECT_NAME = "jhipster-sample-app"
     }
 
     stages {
-
-        stage('1. Clone Repository') {
+        stage('Checkout SCM') {
             steps {
-                echo "Cloning repository from GitHub..."
-                checkout([
-                    $class: 'GitSCM',
+                echo "Cloning repository..."
+                checkout([$class: 'GitSCM',
                     branches: [[name: '*/main']],
                     userRemoteConfigs: [[url: 'https://github.com/Jaguaarr/jhipster-sample-app']]
                 ])
             }
         }
 
-        stage('2. Compile Project') {
+        stage('Compile Project') {
             steps {
                 echo "Compiling Maven project..."
-                sh "${MVN_HOME}/bin/mvn clean compile -DskipTests"
+                sh 'mvn clean compile'
             }
         }
 
-        stage('3. Run Tests with Failure Tolerance') {
+        stage('Run Tests') {
             steps {
-                echo "Running Maven tests..."
-                sh "${MVN_HOME}/bin/mvn test || echo 'Some tests failed, continue...'"
+                echo "Running tests..."
+                sh 'mvn test'
             }
-        }
-
-        stage('4. Generate JAR Package') {
-            steps {
-                echo "Building JAR package..."
-                sh "${MVN_HOME}/bin/mvn package -DskipTests"
-            }
-        }
-
-        stage('5. SonarQube Analysis') {
-            steps {
-                echo "Running SonarQube analysis..."
-                withSonarQubeEnv('SonarQube') {
-                    sh "${MVN_HOME}/bin/mvn sonar:sonar"
+            post {
+                always {
+                    junit '**/target/surefire-reports/*.xml'
                 }
             }
         }
 
-        stage('6. Quality Gate Check') {
+        stage('Package JAR') {
             steps {
-                echo "Checking SonarQube Quality Gate..."
-                timeout(time: 5, unit: 'MINUTES') {
+                echo "Generating JAR package..."
+                sh 'mvn package'
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            environment {
+                SONAR_TOKEN = credentials('sonar-token') // Assurez-vous de configurer ce token dans Jenkins
+            }
+            steps {
+                echo "Running SonarQube Analysis..."
+                withSonarQubeEnv('SonarQube') {
+                    sh "mvn sonar:sonar -Dsonar.login=$SONAR_TOKEN"
+                }
+            }
+        }
+
+        stage('Quality Gate Check') {
+            steps {
+                timeout(time: 1, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
             }
@@ -68,56 +72,49 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 echo "Building Docker image..."
-                sh "docker build -t jhipster-app:latest ."
+                sh "docker build -t ${PROJECT_NAME}:latest ."
             }
         }
 
         stage('Run Docker Container') {
             steps {
                 echo "Running Docker container..."
-                sh "docker run -d -p 8080:8080 --name jhipster-app jhipster-app:latest"
+                sh "docker run -d --name ${PROJECT_NAME} -p 8080:8080 ${PROJECT_NAME}:latest"
             }
         }
 
-        stage('Start Minikube Cluster') {
+        stage('Start Minikube') {
             steps {
                 echo "Starting Minikube..."
-                sh "minikube start"
-            }
-        }
-
-        stage('Check Minikube Status') {
-            steps {
-                echo "Checking Minikube status..."
-                sh "minikube status"
+                sh 'minikube start'
             }
         }
 
         stage('Setup Minikube Docker') {
             steps {
-                echo "Setup Docker environment for Minikube..."
-                sh "eval $(minikube -p minikube docker-env)"
+                echo "Setting Docker environment for Minikube..."
+                sh 'eval $(minikube -p minikube docker-env)'
             }
         }
 
         stage('Build Docker Image for Kubernetes') {
             steps {
                 echo "Building Docker image for Kubernetes..."
-                sh "docker build -t jhipster-app:k8s ."
+                sh "docker build -t ${PROJECT_NAME}:k8s ."
             }
         }
 
         stage('Deploy to Kubernetes') {
             steps {
-                echo "Deploying to Kubernetes..."
-                sh "kubectl apply -f k8s/"
+                echo "Deploying app to Kubernetes..."
+                sh "kubectl apply -f k8s/deployment.yaml"
             }
         }
 
         stage('Expose JHipster App') {
             steps {
-                echo "Exposing JHipster app..."
-                sh "kubectl expose deployment jhipster-app --type=LoadBalancer --port=8080"
+                echo "Exposing service..."
+                sh "kubectl expose deployment ${PROJECT_NAME} --type=NodePort --port=8080"
             }
         }
     }
@@ -125,13 +122,13 @@ pipeline {
     post {
         always {
             echo "Cleaning workspace..."
-            deleteDir() // cleanWs() nécessite le plugin, deleteDir() fonctionne par défaut
+            deleteDir()
         }
         success {
             echo "Pipeline completed successfully!"
         }
         failure {
-            echo "✗ Pipeline failed."
+            echo "Pipeline failed!"
         }
     }
 }
