@@ -1,14 +1,26 @@
 apiVersion: v1
 kind: Service
 metadata:
+  name: postgresql
+spec:
+  type: ClusterIP
+  selector:
+    app: postgresql
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: jhipster-app
 spec:
+  type: ClusterIP
   selector:
     app: jhipster-app
   ports:
     - protocol: TCP
       port: 8080
       targetPort: 8080
-      nodePort: 30080
-  type: NodePort
 

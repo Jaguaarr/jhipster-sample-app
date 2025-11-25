@@ -224,8 +224,35 @@ stage('Setup Minikube Docker') {
 stage('Expose JHipster App') {
     steps {
         script {
-            def hostIP = sh(script: "ip route get 1.1.1.1 | awk '{print \$7; exit}'", returnStdout: true).trim()
-            echo "✅ JHipster app is now accessible at: http://${hostIP}:30080"
+            def pidFile = "/tmp/${APP_NAME}-port-forward.pid"
+            def logFile = "/tmp/${APP_NAME}-port-forward.log"
+
+            sh """
+                set -euo pipefail
+
+                PID_FILE="${pidFile}"
+                LOG_FILE="${logFile}"
+                PORT_FORWARD_CMD="kubectl port-forward --address 0.0.0.0 svc/${APP_NAME} 30080:8080"
+
+                if [ -f "\$PID_FILE" ]; then
+                    OLD_PID=\$(cat "\$PID_FILE")
+                    if ps -p \$OLD_PID >/dev/null 2>&1; then
+                        echo "Stopping existing port-forward (PID \$OLD_PID)..."
+                        kill \$OLD_PID || true
+                        sleep 2
+                    fi
+                fi
+
+                echo "Starting port-forward to expose ${APP_NAME}..."
+                nohup \$PORT_FORWARD_CMD >> "\$LOG_FILE" 2>&1 &
+                echo \$! > "\$PID_FILE"
+            """
+
+            def publicIp = sh(script: "curl -s https://api.ipify.org || curl -s https://ifconfig.me", returnStdout: true).trim()
+
+            echo "✅ JHipster app is now accessible at: http://${publicIp}:30080"
+            echo "ℹ️ Port-forward log: ${logFile}"
+            echo "ℹ️ Stop it with: kill \\$(cat ${pidFile})"
         }
     }
 }
